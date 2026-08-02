@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fiji Campus Bus & Weather Dashboard</title>
+<style>
+  /* ---------- Base page styling ---------- */
+  :root {
+    --ocean-blue: #0a6ebd;
+    --sun-gold: #f2a900;
+    --leaf-green: #2f9e44;
+    --card-bg: #ffffff;
+    --page-bg: #eaf4fb;
+    --text-dark: #1a2b3c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Verdana, Arial, sans-serif;
+    background: linear-gradient(160deg, var(--page-bg), #d7ecf9 60%);
+    color: var(--text-dark);
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .dashboard {
+    max-width: 780px;
+    margin: 0 auto;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 1.9rem;
+    color: var(--ocean-blue);
+  }
+
+  header p {
+    margin: 6px 0 0;
+    color: #46647a;
+    font-size: 0.95rem;
+  }
+
+  /* ---------- Card layout used by both widgets ---------- */
+  .card {
+    background: var(--card-bg);
+    border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(10, 60, 90, 0.12);
+    padding: 22px 24px;
+    margin-bottom: 22px;
+  }
+
+  .card h2 {
+    margin-top: 0;
+    font-size: 1.2rem;
+    color: var(--ocean-blue);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ---------- Bus fare calculator widget ---------- */
+  .fare-form {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .fare-form input {
+    flex: 1 1 180px;
+    padding: 10px 12px;
+    border: 2px solid #cfe3f2;
+    border-radius: 8px;
+    font-size: 1rem;
+  }
+
+  .fare-form input:focus {
+    outline: none;
+    border-color: var(--ocean-blue);
+  }
+
+  .fare-form button {
+    background: var(--ocean-blue);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .fare-form button:hover {
+    background: #085689;
+  }
+
+  .fare-result {
+    margin-top: 16px;
+    padding: 14px;
+    border-radius: 10px;
+    background: #f2f9ff;
+    border-left: 4px solid var(--ocean-blue);
+    display: none; /* shown via JS once a calculation has been made */
+  }
+
+  .fare-result.visible {
+    display: block;
+  }
+
+  .fare-result .rides-number {
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: var(--leaf-green);
+  }
+
+  .error-text {
+    color: #c92a2a;
+    font-size: 0.9rem;
+    margin-top: 8px;
+    display: none;
+  }
+
+  .error-text.visible {
+    display: block;
+  }
+
+  /* ---------- Weather widget ---------- */
+  .weather-box {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .weather-icon {
+    font-size: 3rem;
+    line-height: 1;
+  }
+
+  .weather-details p {
+    margin: 4px 0;
+  }
+
+  .weather-temp {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--sun-gold);
+  }
+
+  .weather-status {
+    font-style: italic;
+    color: #556b7a;
+    font-size: 0.9rem;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #7d95a8;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+  <header>
+    <h1>🇫🇯 Fiji Campus Bus & Weather Dashboard</h1>
+    <p>Plan your bus fares and check today's Nadi weather, all in one place.</p>
+  </header>
+
+  <!-- ================= BUS FARE CALCULATOR CARD ================= -->
+  <section class="card">
+    <h2>🚌 Bus Fare Budget Calculator</h2>
+    <div class="fare-form">
+      <input
+        type="number"
+        id="budgetInput"
+        placeholder="Enter your budget in FJD (e.g. 25)"
+        min="0"
+        step="0.10"
+      />
+      <button id="calcButton">Calculate Rides</button>
+    </div>
+
+    <!-- Error message shown if the input is invalid -->
+    <p class="error-text" id="errorText">Please enter a valid, non-negative number for your budget.</p>
+
+    <!-- Result box, hidden until the first successful calculation -->
+    <div class="fare-result" id="fareResult">
+      <p>
+        With <span id="displayedBudget">$0.00</span> FJD at
+        <strong>$1.50 per ride</strong>, you can afford:
+      </p>
+      <p class="rides-number"><span id="ridesCount">0</span> bus rides</p>
+      <p>Leftover after those rides: <span id="leftoverAmount">$0.00</span> FJD</p>
+    </div>
+  </section>
+
+  <!-- ================= WEATHER CARD ================= -->
+  <section class="card">
+    <h2>☀️ Today's Weather in Nadi</h2>
+    <div class="weather-box" id="weatherBox">
+      <div class="weather-icon" id="weatherIcon">⏳</div>
+      <div class="weather-details">
+        <p class="weather-temp" id="weatherTemp">Loading...</p>
+        <p class="weather-status" id="weatherStatus">Fetching the latest forecast for Nadi</p>
+        <p id="weatherRange"></p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Bus fare assumption: $1.50 FJD per ride (flat rate). Weather data from Open-Meteo.
+  </footer>
+</div>
+
+<script>
+  /* =========================================================
+     BUS FARE CALCULATOR LOGIC
+     ========================================================= */
+
+  const FARE_PER_RIDE = 1.50; // Flat rate assumed per bus ride, in FJD
+
+  const budgetInput   = document.getElementById('budgetInput');
+  const calcButton    = document.getElementById('calcButton');
+  const fareResult    = document.getElementById('fareResult');
+  const errorText     = document.getElementById('errorText');
+  const displayedBudget = document.getElementById('displayedBudget');
+  const ridesCount    = document.getElementById('ridesCount');
+  const leftoverAmount = document.getElementById('leftoverAmount');
+
+  function calculateRides() {
+    const rawValue = budgetInput.value.trim();
+    const budget = parseFloat(rawValue);
+
+    // Validate: must be a real number and cannot be negative
+    if (rawValue === '' || isNaN(budget) || budget < 0) {
+      errorText.classList.add('visible');
+      fareResult.classList.remove('visible');
+      return;
+    }
+
+    // Valid input: hide any previous error
+    errorText.classList.remove('visible');
+
+    // How many whole rides the budget covers
+    const rides = Math.floor(budget / FARE_PER_RIDE);
+
+    // Money left over after buying that many rides
+    const leftover = budget - (rides * FARE_PER_RIDE);
+
+    // Update the result box with formatted currency values
+    displayedBudget.textContent = `$${budget.toFixed(2)}`;
+    ridesCount.textContent = rides;
+    leftoverAmount.textContent = `$${leftover.toFixed(2)}`;
+
+    fareResult.classList.add('visible');
+  }
+
+  // Trigger calculation on button click...
+  calcButton.addEventListener('click', calculateRides);
+
+  // ...or when the student presses Enter inside the input field
+  budgetInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      calculateRides();
+    }
+  });
+
+  /* =========================================================
+     WEATHER WIDGET LOGIC
+     Uses the free, keyless Open-Meteo API for Nadi, Fiji
+     (coordinates: approx. -17.79 latitude, 177.45 longitude)
+     ========================================================= */
+
+  const NADI_LAT = -17.79;
+  const NADI_LON = 177.45;
+
+  const weatherIcon   = document.getElementById('weatherIcon');
+  const weatherTemp   = document.getElementById('weatherTemp');
+  const weatherStatus = document.getElementById('weatherStatus');
+  const weatherRange  = document.getElementById('weatherRange');
+
+  // Map Open-Meteo's numeric "weather codes" to a human description + emoji.
+  // (Only a subset relevant to a tropical climate like Fiji is included.)
+  const WEATHER_CODE_MAP = {
+    0:  { desc: 'Clear sky',              icon: '☀️' },
+    1:  { desc: 'Mainly clear',           icon: '🌤️' },
+    2:  { desc: 'Partly cloudy',          icon: '⛅' },
+    3:  { desc: 'Overcast',               icon: '☁️' },
+    45: { desc: 'Foggy',                  icon: '🌫️' },
+    48: { desc: 'Depositing rime fog',    icon: '🌫️' },
+    51: { desc: 'Light drizzle',          icon: '🌦️' },
+    53: { desc: 'Moderate drizzle',       icon: '🌦️' },
+    55: { desc: 'Dense drizzle',          icon: '🌧️' },
+    61: { desc: 'Slight rain',            icon: '🌦️' },
+    63: { desc: 'Moderate rain',          icon: '🌧️' },
+    65: { desc: 'Heavy rain',             icon: '🌧️' },
+    80: { desc: 'Rain showers',           icon: '🌦️' },
+    81: { desc: 'Moderate rain showers',  icon: '🌧️' },
+    82: { desc: 'Violent rain showers',   icon: '⛈️' },
+    95: { desc: 'Thunderstorm',           icon: '⛈️' },
+    96: { desc: 'Thunderstorm with hail', icon: '⛈️' },
+    99: { desc: 'Severe thunderstorm',    icon: '⛈️' }
+  };
+
+  async function loadNadiWeather() {
+    // Build the Open-Meteo request: current temperature/weather code,
+    // plus today's max/min for extra context.
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${NADI_LAT}&longitude=${NADI_LON}` +
+                `&current_weather=true&daily=temperature_2m_max,temperature_2m_min` +
+                `&timezone=Pacific%2FFiji`;
+
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Weather service responded with status ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      const currentTempC = data.current_weather.temperature;
+      const code = data.current_weather.weathercode;
+      const todayMax = data.daily.temperature_2m_max[0];
+      const todayMin = data.daily.temperature_2m_min[0];
+
+      const info = WEATHER_CODE_MAP[code] || { desc: 'Weather conditions', icon: '🌡️' };
+
+      weatherIcon.textContent = info.icon;
+      weatherTemp.textContent = `${currentTempC.toFixed(1)}°C`;
+      weatherStatus.textContent = info.desc;
+      weatherRange.textContent = `Today's high/low: ${todayMax.toFixed(1)}°C / ${todayMin.toFixed(1)}°C`;
+
+    } catch (err) {
+      // Graceful fallback if the network request fails (e.g. offline, blocked API)
+      weatherIcon.textContent = '⚠️';
+      weatherTemp.textContent = 'Unavailable';
+      weatherStatus.textContent = 'Could not load live weather data right now.';
+      weatherRange.textContent = '';
+      console.error('Weather fetch failed:', err);
+    }
+  }
+
+  // Load the forecast as soon as the page is ready
+  loadNadiWeather();
+</script>
+
+</body>
+</html>
